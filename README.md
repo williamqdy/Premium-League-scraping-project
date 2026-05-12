@@ -1,6 +1,6 @@
 # Premier League Ranking Scraper (R)
 
-This project uses R to scrape **team rankings and names** from the official Premier League standings page. The data is saved as a CSV for later use in data analysis (STAT260 course project).
+This project uses R to scrape **team rankings and names** from the official Premier League standings page. The data is saved as a CSV for later use in data analysis.
 
 ## 🛠 Technologies Used
 
