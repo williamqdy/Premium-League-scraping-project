@@ -1,0 +1,301 @@
+---
+title: "Premier League Standing Analysis"
+author: "Dayan Qin"
+date: "2026-05-14"
+output: html_document
+---
+```{r}
+
+# ============================================================
+# Premier League 2023/24 Table Analysis
+# ============================================================
+
+library(rvest)
+library(tidyverse)
+library(readr)
+
+# ============================================================
+# Part 1: Scrape Premier League table page
+# ============================================================
+
+# Find the official website and read the html
+pl_url <- "https://www.premierleague.com/en/tables/premier-league/2023-24/all-matchweeks"
+
+dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
+
+page <- read_html_live(pl_url)
+
+Sys.sleep(8)
+
+# Extract all team rows 
+rows <- page %>%
+  html_elements("tr[data-testid='standingsRow']")
+
+# Check whether the expected 20 Premier League clubs were loaded
+if (length(rows) != 20) {
+  stop(
+    "Expected 20 team rows, but found ", length(rows),
+    ". The page may not have loaded correctly or the selector may have changed."
+  )
+}
+
+# Save as a local HTML file
+rendered_body <- page %>%
+  html_element("tbody[data-testid = 'standingsTableBody']") %>%
+  as.character()
+
+writeLines(
+  rendered_body,
+  "data/raw/pl_2023_24_standings_table.html",
+  useBytes = TRUE
+)
+
+# Save raw row text for manual inspection
+raw_rows_text <- rows %>%
+  html_text2()
+
+writeLines(
+  raw_rows_text,
+  "data/raw/pl_2023_24_raw_rows.txt",
+  useBytes = TRUE
+)
+
+#check manually if we have the correct data
+raw_rows_text[1:5]
+
+
+```
+
+
+
+```{r}
+# ============================================================
+# Part 2: Clean and prepare the data
+# ============================================================
+
+library(rvest)
+library(tidyverse)
+library(readr)
+library(stringr)
+
+dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
+
+# Read the locally saved HTML
+
+doc <- read_html("data/raw/pl_2023_24_standings_table.html")
+
+# Extract 20 team rows
+rows <- doc %>%
+  html_elements("tr[data-testid='standingsRow']")
+
+if (length(rows) != 20) {
+  stop(
+    "Expected 20 team rows, but found ", length(rows),
+    ". Check the saved HTML file or the selector."
+  )
+}
+
+# Helper function: extract clean text from the selector
+get_text <- function(row, selector) {
+  row %>%
+    html_element(selector) %>%
+    html_text2() %>%
+    str_squish()
+}
+
+# Parse each row into a clean table
+standings <- map_dfr(rows, function(row) {
+  tibble(
+    position = row %>%
+      html_elements("[data-testid='standingsRowPosition']") %>%
+      html_text2() %>%
+      first() %>%
+      as.integer(),
+    
+    team = get_text(row, "[data-testid='standingsTeamName']"),
+    
+    played = get_text(row, "[data-testid='standingsRowStatPlayed']") %>% as.integer(),
+    wins = get_text(row, "[data-testid='standingsRowStatWon']") %>% as.integer(),
+    draws = get_text(row, "[data-testid='standingsRowStatDrawn']") %>% as.integer(),
+    losses = get_text(row, "[data-testid='standingsRowStatLost']") %>% as.integer(),
+    goals_for = get_text(row, "[data-testid='standingsRowStatGoalFor']") %>% as.integer(),
+    goals_against = get_text(row, "[data-testid='standingsRowStatGoalAgainst']") %>% as.integer(),
+    goal_difference = get_text(row, "[data-testid='standingsRowStatGoalDifference']") %>% as.integer(),
+    points = get_text(row, "[data-testid='standingsRowPoints']") %>% as.integer()
+  )
+}) %>%
+  arrange(position) %>%
+  mutate(
+    points_from_results = wins * 3 + draws,
+    points_adjustment = points - points_from_results
+  )
+
+
+stopifnot(nrow(standings) == 20)
+stopifnot(n_distinct(standings$team) == 20)
+stopifnot(all(standings$played == 38))
+stopifnot(setequal(standings$position, 1:20))
+stopifnot(!any(is.na(standings$team)))
+stopifnot(!any(is.na(standings$points)))
+
+# Save cleaned data
+write_csv(
+  standings,
+  "data/processed/pl_2023_24_standings_clean.csv"
+)
+
+standings
+```
+
+
+```{r}
+# ============================================================
+# Part 3: Visualize Premier League 2023/24 standings
+# ============================================================
+
+library(tidyverse)
+library(readr)
+
+dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
+
+standings <- read_csv("data/processed/pl_2023_24_standings_clean.csv")
+
+
+```
+
+```{r}
+# ============================================================
+# Figure 1: Final points by team
+# ============================================================
+
+points_plot <- standings %>%
+  mutate(team = fct_reorder(team, points)) %>%
+  ggplot(aes(x = team, y = points)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = points),
+    hjust = -0.2,
+    size = 3.5
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, max(standings$points) + 8),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    title = "Premier League 2023/24 Final Points by Team",
+    subtitle = "Manchester City finished first with 91 points, followed closely by Arsenal with 89 points.",
+    x = "Team",
+    y = "Points"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
+points_plot
+
+ggsave(
+  filename = "outputs/figures/points_bar_chart.png",
+  plot = points_plot,
+  width = 9,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)
+```
+
+```{r}
+# ============================================================
+# Figure 2: Goals for vs goals against
+# ============================================================
+
+goals_plot <- ggplot(
+  standings,
+  aes(x = goals_for, y = goals_against)
+) +
+  geom_point(size = 3) +
+  geom_text(
+    aes(label = team),
+    vjust = -0.7,
+    size = 3,
+    check_overlap = TRUE
+  ) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed"
+  ) +
+  labs(
+    title = "Goals For vs Goals Against in the Premier League 2023/24 Season",
+    subtitle = "Teams below the dashed line scored more goals than they conceded.",
+    x = "Goals For",
+    y = "Goals Against"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold")
+  )
+
+goals_plot
+
+ggsave(
+  filename = "outputs/figures/goals_for_against_scatter.png",
+  plot = goals_plot,
+  width = 9,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)
+```
+
+```{r}
+# ============================================================
+# Figure 3: Points vs goal difference
+# ============================================================
+
+cor_points_gd <- cor(standings$points, standings$goal_difference)
+
+points_gd_plot <- ggplot(
+  standings,
+  aes(x = goal_difference, y = points)
+) +
+  geom_point(size = 3) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    linetype = "dashed"
+  ) +
+  geom_text(
+    aes(label = team),
+    vjust = -0.7,
+    size = 3,
+    check_overlap = TRUE
+  ) +
+  labs(
+    title = "Relationship Between Points and Goal Difference",
+    subtitle = paste0(
+      "Correlation between points and goal difference: ",
+      round(cor_points_gd, 2)
+    ),
+    x = "Goal Difference",
+    y = "Points"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold")
+  )
+
+points_gd_plot
+
+ggsave(
+  filename = "outputs/figures/points_goal_difference_scatter.png",
+  plot = points_gd_plot,
+  width = 9,
+  height = 6,
+  dpi = 300,
+  bg = "white"
+)
+```
+
