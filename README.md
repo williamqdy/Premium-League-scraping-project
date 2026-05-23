@@ -2,13 +2,13 @@
 
 ## Project Overview｜项目概览
 
-This project analyzes the final standings of the 2023/24 Premier League season using R.  
+- This project analyzes the final standings of the 2023/24 Premier League season using R.  
 本项目使用 R 对 2023/24 赛季英超最终积分榜进行数据分析。
 
-The workflow covers web scraping, data cleaning, CSV export, and data visualization.  
+- The workflow covers web scraping, data cleaning, CSV export, and data visualization.  
 项目流程包括网页数据爬取、数据清洗、CSV 输出和数据可视化。
 
-The goal is to show how raw web data can be converted into a structured dataset and used for simple performance analysis.  
+- The goal is to show how raw web data can be converted into a structured dataset and used for simple performance analysis.  
 项目目标是展示如何将网页原始数据整理成结构化数据，并用于球队表现分析。
 
 ---
