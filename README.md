@@ -90,7 +90,6 @@ Premier_League_Standings_Analysis/
 ├── data/
 │   ├── processed/
 │   │   └── pl_2023_24_standings_clean.csv
-│   └── raw/
 │
 └── outputs/
     └── figures/
