@@ -16,13 +16,13 @@ The goal is to show how raw web data can be converted into a structured dataset 
 ## Key Outputs｜主要成果
 
 - Scraped the 2023/24 Premier League standings from the official Premier League website  
-- 从英超官网爬取 2023/24 赛季积分榜数据
+  从英超官网爬取 2023/24 赛季积分榜数据
 
 - Cleaned team-level statistics into a structured dataset  
-- 将球队层面的数据清洗成结构化表格
+  将球队层面的数据清洗成结构化表格
 
 - Created three charts to analyze team performance  
-- 生成三张图表分析球队表现
+  生成三张图表分析球队表现
 
 ---
 
